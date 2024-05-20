@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.yupi.xuoj.common.ErrorCode;
 import com.yupi.xuoj.constant.CommonConstant;
 import com.yupi.xuoj.exception.BusinessException;
+import com.yupi.xuoj.judge.JudgeService;
 import com.yupi.xuoj.model.dto.questionsubmit.QuestionSubmitAddRequest;
 import com.yupi.xuoj.model.dto.questionsubmit.QuestionSubmitQueryRequest;
 import com.yupi.xuoj.model.entity.*;
@@ -22,6 +23,7 @@ import com.yupi.xuoj.service.UserService;
 import com.yupi.xuoj.utils.SqlUtils;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
@@ -29,6 +31,7 @@ import javax.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 /**
@@ -45,6 +48,10 @@ public class QuestionSubmitServiceImpl extends ServiceImpl<QuestionSubmitMapper,
 
     @Resource
     private UserService userService;
+
+    @Resource
+    @Lazy
+    private JudgeService judgeService;
 
     /**
      * 提交题目
@@ -67,22 +74,26 @@ public class QuestionSubmitServiceImpl extends ServiceImpl<QuestionSubmitMapper,
         if (question == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND_ERROR);
         }
-        // 是否已点赞
+        // 是否已提交题目
         long userId = loginUser.getId();
-        // 每个用户串行点赞
+        // 每个用户串行提交题目
         QuestionSubmit questionSubmit = new QuestionSubmit();
         questionSubmit.setUserId(userId);
         questionSubmit.setQuestionId(questionId);
         questionSubmit.setCode(questionSubmitAddRequest.getCode());
-        questionSubmit.setLanguage(questionSubmitAddRequest.getLanguage());
-        // 设置初始的提交状态
+        questionSubmit.setLanguage(language);
+        // 设置初始状态
         questionSubmit.setStatus(QuestionSubmitStatusEnum.WAITING.getValue());
-        questionSubmit.setStatus(0);
         questionSubmit.setJudgeInfo("{}");
         boolean save = this.save(questionSubmit);
-        if (!save) {
+        if (!save){
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "数据插入失败");
         }
+        Long questionSubmitId = questionSubmit.getId();
+        // 执行判题服务
+        CompletableFuture.runAsync(() -> {
+            judgeService.doJudge(questionSubmitId);
+        });
         return questionSubmit.getId();
     }
 

@@ -2,7 +2,7 @@ package com.yupi.xuoj.model.vo;
 
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.annotation.TableName;
-import com.yupi.xuoj.model.dto.questionsubmit.JudgeInfo;
+import com.yupi.xuoj.judge.codesandbox.model.JudgeInfo;
 import com.yupi.xuoj.model.entity.QuestionSubmit;
 import lombok.Data;
 import org.springframework.beans.BeanUtils;

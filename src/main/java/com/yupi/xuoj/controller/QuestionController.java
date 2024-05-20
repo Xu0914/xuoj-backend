@@ -12,11 +12,15 @@ import com.yupi.xuoj.constant.UserConstant;
 import com.yupi.xuoj.exception.BusinessException;
 import com.yupi.xuoj.exception.ThrowUtils;
 import com.yupi.xuoj.model.dto.question.*;
-import com.yupi.xuoj.model.dto.user.UserQueryRequest;
+import com.yupi.xuoj.model.dto.questionsubmit.QuestionSubmitAddRequest;
+import com.yupi.xuoj.model.dto.questionsubmit.QuestionSubmitQueryRequest;
 import com.yupi.xuoj.model.entity.Question;
+import com.yupi.xuoj.model.entity.QuestionSubmit;
 import com.yupi.xuoj.model.entity.User;
+import com.yupi.xuoj.model.vo.QuestionSubmitVO;
 import com.yupi.xuoj.model.vo.QuestionVO;
 import com.yupi.xuoj.service.QuestionService;
+import com.yupi.xuoj.service.QuestionSubmitService;
 import com.yupi.xuoj.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -43,6 +47,11 @@ public class QuestionController {
     @Resource
     private UserService userService;
 
+    @Resource
+    private QuestionSubmitService questionSubmitService;
+
+    public static final Gson GSON = new Gson();
+
     // region 增删改查
 
     /**
@@ -61,15 +70,15 @@ public class QuestionController {
         BeanUtils.copyProperties(questionAddRequest, question);
         List<String> tags = questionAddRequest.getTags();
         if (tags != null) {
-            question.setTags(JSONUtil.toJsonStr(tags));
+            question.setTags(GSON.toJson(tags));
         }
         List<JudgeCase> judgeCase = questionAddRequest.getJudgeCase();
         if (judgeCase != null) {
-            question.setJudgeCase(JSONUtil.toJsonStr(judgeCase));
+            question.setJudgeCase(GSON.toJson(judgeCase));
         }
         JudgeConfig judgeConfig = questionAddRequest.getJudgeConfig();
         if (judgeConfig != null) {
-            question.setJudgeConfig(JSONUtil.toJsonStr(judgeConfig));
+            question.setJudgeConfig(GSON.toJson(judgeConfig));
         }
         questionService.validQuestion(question, true);
         User loginUser = userService.getLoginUser(request);
@@ -123,15 +132,15 @@ public class QuestionController {
         BeanUtils.copyProperties(questionUpdateRequest, question);
         List<String> tags = questionUpdateRequest.getTags();
         if (tags != null) {
-            question.setTags(JSONUtil.toJsonStr(tags));
+            question.setTags(GSON.toJson(tags));
         }
         List<JudgeCase> judgeCase = questionUpdateRequest.getJudgeCase();
         if (judgeCase != null) {
-            question.setJudgeCase(JSONUtil.toJsonStr(judgeCase));
+            question.setJudgeCase(GSON.toJson(judgeCase));
         }
         JudgeConfig judgeConfig = questionUpdateRequest.getJudgeConfig();
         if (judgeConfig != null) {
-            question.setJudgeConfig(JSONUtil.toJsonStr(judgeConfig));
+            question.setJudgeConfig(GSON.toJson(judgeConfig));
         }
         // 参数校验
         questionService.validQuestion(question, false);
@@ -261,15 +270,15 @@ public class QuestionController {
         BeanUtils.copyProperties(questionEditRequest, question);
         List<String> tags = questionEditRequest.getTags();
         if (tags != null) {
-            question.setTags(JSONUtil.toJsonStr(tags));
+            question.setTags(GSON.toJson(tags));
         }
         List<JudgeCase> judgeCase = questionEditRequest.getJudgeCase();
         if (judgeCase != null) {
-            question.setJudgeCase(JSONUtil.toJsonStr(judgeCase));
+            question.setJudgeCase(GSON.toJson(judgeCase));
         }
         JudgeConfig judgeConfig = questionEditRequest.getJudgeConfig();
         if (judgeConfig != null) {
-            question.setJudgeConfig(JSONUtil.toJsonStr(judgeConfig));
+            question.setJudgeConfig(GSON.toJson(judgeConfig));
         }
         // 参数校验
         questionService.validQuestion(question, false);
@@ -284,6 +293,44 @@ public class QuestionController {
         }
         boolean result = questionService.updateById(question);
         return ResultUtils.success(result);
+    }
+
+    /**
+     * 提交题目
+     *
+     * @param questionSubmitAddRequest
+     * @param request
+     * @return resultNum 提交记录的 id
+     */
+    @PostMapping("/question_submit/do")
+    public BaseResponse<Long> doQuestionSubmit(@RequestBody QuestionSubmitAddRequest questionSubmitAddRequest,
+                                               HttpServletRequest request) {
+        if (questionSubmitAddRequest == null || questionSubmitAddRequest.getQuestionId() <= 0) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        // 登录才能提交题目
+        final User loginUser = userService.getLoginUser(request);
+        long questionSubmitId = questionSubmitService.doQuestionSubmit(questionSubmitAddRequest, loginUser);
+        return ResultUtils.success(questionSubmitId);
+    }
+
+    /**
+     * 分页获取题目提交列表（除了管理员外，普通用户只能看到非答案、提交代码等公开信息）
+     *
+     * @param questionSubmitQueryRequest
+     * @return
+     */
+    @PostMapping("/question_submit/list/page")
+    public BaseResponse<Page<QuestionSubmitVO>> listQuestionSubmitByPage(@RequestBody QuestionSubmitQueryRequest questionSubmitQueryRequest,
+                                                                         HttpServletRequest request) {
+        long current = questionSubmitQueryRequest.getCurrent();
+        long size = questionSubmitQueryRequest.getPageSize();
+        // 从数据库中查询元素的题目提交分页信息
+        Page<QuestionSubmit> questionSubmitPage = questionSubmitService.page(new Page<>(current, size),
+                questionSubmitService.getQueryWrapper(questionSubmitQueryRequest));
+        final User loginUser = userService.getLoginUser(request);
+        // 返回脱敏信息
+        return ResultUtils.success(questionSubmitService.getQuestionSubmitVOPage(questionSubmitPage, loginUser));
     }
 
 }

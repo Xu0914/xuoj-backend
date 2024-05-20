@@ -18,13 +18,11 @@ import java.util.List;
  * 题目封装类
  * @TableName question
  */
-@TableName(value ="question")
 @Data
 public class QuestionVO implements Serializable {
     /**
      * id
      */
-    @TableId(type = IdType.AUTO)
     private Long id;
 
     /**
@@ -38,7 +36,7 @@ public class QuestionVO implements Serializable {
     private String content;
 
     /**
-     * 标签列表（json 数组）
+     * 标签列表
      */
     private List<String> tags;
 
@@ -83,7 +81,7 @@ public class QuestionVO implements Serializable {
     private Date updateTime;
 
     /**
-     * 创建题目人信息
+     * 创建题目人的信息
      */
     private UserVO userVO;
 
@@ -122,7 +120,8 @@ public class QuestionVO implements Serializable {
         }
         QuestionVO questionVO = new QuestionVO();
         BeanUtils.copyProperties(question, questionVO);
-        questionVO.setTags(JSONUtil.toList(question.getTags(), String.class));
+        List<String> tagList = JSONUtil.toList(question.getTags(), String.class);
+        questionVO.setTags(tagList);
         String judgeConfigStr = question.getJudgeConfig();
         questionVO.setJudgeConfig(JSONUtil.toBean(judgeConfigStr, JudgeConfig.class));
         return questionVO;
